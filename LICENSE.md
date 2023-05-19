@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2020 Donna Harris, Ma Luo, Will Anderson
+Copyright (c) 2022 Donna Mohammad Sadeq Sirjani, Amir Mousavi
 
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

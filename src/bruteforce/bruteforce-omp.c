@@ -7,40 +7,45 @@
 #include "../globals.h"
 
 /**
-* Brute force attack entry function 
-*
-* Enhanced OMP solution based on the bruteforce-mpi.c
-*
-* @param password_hash - hashed each character in password with sha256 values and hold them with this buffer.
-* @param characters - patters to compare with which relies on the option we have picked in the main.c program.
-* @param password_max_length - by default is 4, we might have -c N passes in as we are testing password with length N.
-* @param verbose - options to print out debug info
-* @return result - 1 indicates not found, 0 indicates found
-*/
+ * Brute force attack entry function
+ *
+ * Enhanced OMP solution based on the bruteforce-mpi.c
+ *
+ * @param password_hash - hashed each character in password with sha256 values and hold them with this buffer.
+ * @param characters - patters to compare with which relies on the option we have picked in the main.c program.
+ * @param password_max_length - by default is 4, we might have -c N passes in as we are testing password with length N.
+ * @param verbose - options to print out debug info
+ * @return result - 1 indicates not found, 0 indicates found
+ */
 int bruteforce_crack(char *password_hash, char *characters, int password_max_length, int verbose)
 {
-    // Input Calculations
-    int number_of_characters = strlen(characters);
-    if (verbose)  print_stats(password_hash, characters, number_of_characters, password_max_length);
-
-    // Program counters and flags
-    int result = NOT_FOUND;
-    int i, j;
-
-    for (i = 1; i <= password_max_length && result > 0; i++)
+    omp_set_dynamic(0);     // Explicitly disable dynamic teams
+    omp_set_num_threads(4); // Use 4 threads for all consecutive parallel regions
+#pragma omp parallel
     {
-        // Calculate the number of permutations we'll need to calculate
-        long possibilities = calculate_possibilities(number_of_characters, i, verbose, 0);
+        // Input Calculations
+        int number_of_characters = strlen(characters);
+        if (verbose)
+            print_stats(password_hash, characters, number_of_characters, password_max_length);
 
-        // split up for loop for chunking work
-        for (j = 0; j < possibilities && result > 0;)
+        // Program counters and flags
+        int result = NOT_FOUND;
+        int i, j;
+
+#pragma omp parallel for schedule(auto)
+        for (i = 1; i <= password_max_length && result > 0; i++)
         {
-            // Calculate and execute next chunk of work
-            int nextStep = calculate_next_step(j, possibilities, CHUNK_SIZE);
-            int k;
-            #pragma omp parallel
+            // Calculate the number of permutations we'll need to calculate
+            long possibilities = calculate_possibilities(number_of_characters, i, verbose, 0);
+
+#pragma omp paraller for
+            // split up for loop for chunking work
+            for (j = 0; j < possibilities && result > 0;)
             {
-                #pragma omp for schedule(auto)
+                // Calculate and execute next chunk of work
+                int nextStep = calculate_next_step(j, possibilities, CHUNK_SIZE);
+                int k;
+
                 for (k = j; k < nextStep; k++)
                 {
                     // generate password, hash it, then compare it
@@ -50,22 +55,23 @@ int bruteforce_crack(char *password_hash, char *characters, int password_max_len
                     hash(passwordToTest, buffer);
                     if (!strcmp(password_hash, buffer))
                     {
-                        #pragma omp critical
+#pragma omp critical
                         {
                             printf("Password found: %s\n", passwordToTest);
                             result = FOUND;
                         }
                     }
                 }
-            }
-            j=nextStep;
-        }
-    }
 
-    // Print not found result
-    if (result == NOT_FOUND)
-    {
-         printf("Password not found.\n");
+                j = nextStep;
+            }
+        }
+
+        // Print not found result
+        if (result == NOT_FOUND)
+        {
+            printf("Password not found.\n");
+        }
+        return result;
     }
-    return result;
 }

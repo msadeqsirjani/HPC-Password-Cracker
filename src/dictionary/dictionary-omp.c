@@ -63,6 +63,7 @@ int compare_candidates(FILE **file, char *password_hash, int verbose)
     int counter = 0;
     char * candidate_array[CHUNK_SIZE];
 
+    #pragma omp parallel for reduction(+:result)
     while ((read = getline(&line, &len, *file) != -1) && result == NOT_FOUND)
     {
         remove_new_line(line, &candidate_array[counter]);
